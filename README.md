@@ -2,6 +2,8 @@
 Typecho Mail Validate Plugin
 这是一个 Typecho 邮箱验证插件
 
+用户完成邮箱验证后，会自动提升权限到贡献者，也就是可以发表文章但需要审核
+
 ### 安装说明
 - 上传到/usr/plugins/ （包括文件夹）
 - 控制台 - 插件 处启用 MailValidate
