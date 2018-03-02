@@ -93,9 +93,9 @@ class MailValidate_Plugin implements Typecho_Plugin_Interface{
         $db = Typecho_Db::get(); 
         $row = $db->fetchRow($db->select('validate_state')->from('table.users')->where('uid = ?',  $user->uid));
         if($row['validate_state']==="0"){
-            echo '<a class="message" target="_self" style="background-color:red;color:white" href="/MailValidate/send">点此完成邮件验证以发表文章</a>';
+            echo '<span class="message" target="_self" style="background-color:red;color:white;cursor:pointer;" onclick="window.location=\'/MailValidate/send\'">点此完成邮件验证以发表文章</span>';
         }else if($row['validate_state']==="1"){
-            echo '<a class="message" target="_self" style="background-color:red;color:white" href="/MailValidate/send">点此重发验证邮件</a>';
+            echo '<span class="message" target="_self" style="background-color:red;color:white;cursor:pointer;" onclick="window.location=\'/MailValidate/send\'">点此重发验证邮件</span>';
         }
     }
 }
