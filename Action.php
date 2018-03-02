@@ -94,6 +94,7 @@ class MailValidate_Action extends Typecho_Widget implements Widget_Interface_Do
         return $result;
     }
     public function action(){
+	$this->init();
         $token=$this->request->token;
         if($token){
             try {
