@@ -1,8 +1,6 @@
 <?php
 class MailValidate_Action extends Typecho_Widget implements Widget_Interface_Do
 {
-    
-    private $db;
     /** @var  数据操作对象 */
     private $_db;
     
@@ -25,8 +23,7 @@ class MailValidate_Action extends Typecho_Widget implements Widget_Interface_Do
     private  $_email;
     public function __construct($request, $response, $params = NULL)
     {
-        parent::__construct($request, $response, $params);
-        $this->db = Typecho_Db::get();        
+        parent::__construct($request, $response, $params);    
     }
     public function init()
     {
@@ -37,6 +34,7 @@ class MailValidate_Action extends Typecho_Widget implements Widget_Interface_Do
         $this->_cfg = Helper::options()->plugin('MailValidate');
     }
     public function execute() {
+		return;
     }
     /*
      * 发送邮件
@@ -96,34 +94,31 @@ class MailValidate_Action extends Typecho_Widget implements Widget_Interface_Do
         return $result;
     }
     public function action(){
-        
-        
         $token=$this->request->token;
         if($token){
             try {
-                $row = $this->db->fetchRow($this->db->select('validate_state')->from('table.users')->where('validate_token = ?', $token));
+                $row = $this->_db->fetchRow($this->_db->select('validate_state')->from('table.users')->where('validate_token = ?', $token));
                 if($row['validate_state']==="1"){
-                    $this->db->query($this->db->update('table.users')->rows(array('validate_state' => 2))->where('validate_token = ?', $token));
-                    $group = $this->db->fetchRow($this->db->select('group')->from('table.users')->where('validate_token = ?', $token));
+                    $this->_db->query($this->_db->update('table.users')->rows(array('validate_state' => 2))->where('validate_token = ?', $token));
+                    $group = $this->_db->fetchRow($this->_db->select('group')->from('table.users')->where('validate_token = ?', $token));
                     if($group['group']==="subscriber"){
-                        $this->db->query($this->db->update('table.users')->rows(array('group' => "contributor"))->where('validate_token = ?', $token));
+                        $this->_db->query($this->_db->update('table.users')->rows(array('group' => "contributor"))->where('validate_token = ?', $token));
                     }
-                    echo(file_get_contents(dirname(__FILE__)."/success.html"));
+                    echo(file_get_contents($this->_dir."/success.html"));
                 }else{
-                    echo(file_get_contents(dirname(__FILE__)."/fail.html"));
+                    echo(file_get_contents($this->_dir."/fail.html"));
                 }
             } catch (Exception $ex) {
                echo $ex->getCode(); 
             }
         }  else {
-            echo(file_get_contents(dirname(__FILE__)."/fail.html"));
+            echo(file_get_contents($this->_dir."/fail.html"));
         }
       
     }
-    function send(){
+    public function send(){
         $this->init();
         if(!$this->_user->mail){
-            //echo(file_get_contents(dirname(__FILE__)."/fail.html"));
             $this->widget('Widget_Notice')->set("邮件发送失败",'notice');
             $this->response->goBack();
         }else{
@@ -134,14 +129,14 @@ class MailValidate_Action extends Typecho_Widget implements Widget_Interface_Do
             $this->_email->subject = $this->_cfg->titleForGuest;
             //生成token：md5(mail+time+随机数)
             $token=md5($this->_user->mail.time().$this->_user->mail.rand());
-            $this->db->query($this->db->update('table.users')->rows(array('validate_token' => $token))->where('uid = ?', $this->_user->uid));
-            $mailcontent=file_get_contents(dirname(__FILE__)."/mail.html");
+            $this->_db->query($this->_db->update('table.users')->rows(array('validate_token' => $token))->where('uid = ?', $this->_user->uid));
+            $mailcontent=file_get_contents($this->_dir."/mail.html");
             $keys=array('%sitename%'=>$this->_options->title,'%username%'=>$this->_user->screenName,'%verifyurl%'=>"https://ero.ink/MailValidate/verify?token=".$token,'%useravatar%'=>md5($this->_user->mail));
             $mailcontent=strtr($mailcontent,$keys);
             $this->_email->altBody = $mailcontent;
             $this->_email->msgHtml = $mailcontent;
             $result = $this->sendMail();
-            $this->db->query($this->db->update('table.users')->rows(array('validate_state' => 1))->where('uid = ?', $this->_user->uid));
+            $this->_db->query($this->_db->update('table.users')->rows(array('validate_state' => 1))->where('uid = ?', $this->_user->uid));
             $this->widget('Widget_Notice')->set(true === $result ? _t('邮件发送成功') : _t('邮件发送失败：' . $result),
                 true === $result ? 'success' : 'notice');
     
