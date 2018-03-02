@@ -18,6 +18,6 @@ Typecho Mail Validate Plugin
 如果您对邮件样式不满意或者背景图片链接失效 请自行更改.
 
 ### 版权信息
-插件开发过程中参考了 (CommentToMail)[https://github.com/byends/CommentToMail] 插件和 Like插件（点赞插件 原作者已找不到）
+插件开发过程中参考了 [CommentToMail](https://github.com/byends/CommentToMail) 插件和 Like插件（点赞插件 原作者已找不到）
 
 发布协议为MIT，欢迎随意使用修改转载，只需保留作者信息。
