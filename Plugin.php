@@ -11,7 +11,6 @@ if (!defined('__TYPECHO_ROOT_DIR__')) exit;
 
 class MailValidate_Plugin implements Typecho_Plugin_Interface{
 
-
     /**
      * 激活插件方法,如果激活失败,直接抛出异常
      * 
@@ -74,7 +73,8 @@ class MailValidate_Plugin implements Typecho_Plugin_Interface{
 
         $validate = new Typecho_Widget_Helper_Form_Element_Checkbox('validate',
                 array('validate'=>'服务器需要验证',
-                    'ssl'=>'ssl加密'),
+                    'ssl'=>'ssl加密',
+                    'tls'=>'tls加密'),
                 array('validate'),'SMTP验证');
         $form->addInput($validate);
         
@@ -99,8 +99,3 @@ class MailValidate_Plugin implements Typecho_Plugin_Interface{
         }
     }
 }
-
-
-
-
-?>
