@@ -1,4 +1,12 @@
 <?php
+
+use PHPMailer\PHPMailer\PHPMailer;
+use PHPMailer\PHPMailer\Exception;
+
+require_once 'lib/PHPMailer.php';
+require_once 'lib/SMTP.php';
+require_once 'lib/Exception.php';
+
 class MailValidate_Action extends Typecho_Widget implements Widget_Interface_Do
 {
     /** @var  数据操作对象 */
@@ -42,7 +50,6 @@ class MailValidate_Action extends Typecho_Widget implements Widget_Interface_Do
     public function sendMail()
     {
         /** 载入邮件组件 */
-        require_once $this->_dir . '/lib/class.phpmailer.php';
         $mailer = new PHPMailer();
         $mailer->CharSet = 'UTF-8';
         $mailer->Encoding = 'base64';
@@ -64,6 +71,8 @@ class MailValidate_Action extends Typecho_Widget implements Widget_Interface_Do
 
                 if (in_array('ssl', $this->_cfg->validate)) {
                     $mailer->SMTPSecure = "ssl";
+                } else if (in_array('tls', $this->_cfg->validate)) {
+                    $mailer->SMTPSecure = "tls";
                 }
 
                 $mailer->Host     = $this->_cfg->host;
@@ -94,7 +103,7 @@ class MailValidate_Action extends Typecho_Widget implements Widget_Interface_Do
         return $result;
     }
     public function action(){
-	$this->init();
+	    $this->init();
         $token=$this->request->token;
         if($token){
             try {
@@ -128,15 +137,18 @@ class MailValidate_Action extends Typecho_Widget implements Widget_Interface_Do
             $this->_email->to = $this->_user->mail;
             $this->_email->toName = $this->_user->screenName;
             $this->_email->subject = $this->_cfg->titleForGuest;
+            
             //生成token：md5(mail+time+随机数)
             $token=md5($this->_user->mail.time().$this->_user->mail.rand());
             $this->_db->query($this->_db->update('table.users')->rows(array('validate_token' => $token))->where('uid = ?', $this->_user->uid));
             $mailcontent=file_get_contents($this->_dir."/mail.html");
-            $keys=array('%sitename%'=>$this->_options->title,'%username%'=>$this->_user->screenName,'%verifyurl%'=>"https://ero.ink/MailValidate/verify?token=".$token,'%useravatar%'=>md5($this->_user->mail));
+            $keys=array('%sitename%'=>$this->_options->title,'%username%'=>$this->_user->screenName,'%verifyurl%'=>$this->siteUrl."/MailValidate/verify?token=".$token,'%useravatar%'=>md5($this->_user->mail));
             $mailcontent=strtr($mailcontent,$keys);
+
             $this->_email->altBody = $mailcontent;
             $this->_email->msgHtml = $mailcontent;
             $result = $this->sendMail();
+            
             $this->_db->query($this->_db->update('table.users')->rows(array('validate_state' => 1))->where('uid = ?', $this->_user->uid));
             $this->widget('Widget_Notice')->set(true === $result ? _t('邮件发送成功') : _t('邮件发送失败：' . $result),
                 true === $result ? 'success' : 'notice');
