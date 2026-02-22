@@ -28,11 +28,13 @@ class MailValidate_Action extends Typecho_Widget implements Widget_Interface_Do
     private $_user;
     
     /** @var  邮件内容信息 */
-    private  $_email;
+    private $_email;
+
     public function __construct($request, $response, $params = NULL)
     {
         parent::__construct($request, $response, $params);    
     }
+
     public function init()
     {
         $this->_dir = dirname(__FILE__);
@@ -40,10 +42,14 @@ class MailValidate_Action extends Typecho_Widget implements Widget_Interface_Do
         $this->_user = $this->widget('Widget_User');
         $this->_options = $this->widget('Widget_Options');
         $this->_cfg = Helper::options()->plugin('MailValidate');
+        // 【修复】必须初始化为一个标准对象，否则 PHP 8 下直接赋值属性会报错
+        $this->_email = new \stdClass();
     }
+
     public function execute() {
-		return;
+        return;
     }
+
     /*
      * 发送邮件
      */
@@ -65,13 +71,16 @@ class MailValidate_Action extends Typecho_Widget implements Widget_Interface_Do
             case 'smtp':
                 $mailer->IsSMTP();
 
-                if (in_array('validate', $this->_cfg->validate)) {
+                // 【修复】确保从配置中读取的 validate 项是数组，防止复选框未选中时为 null 导致 in_array 报错
+                $validateConfig = is_array($this->_cfg->validate) ? $this->_cfg->validate : [];
+
+                if (in_array('validate', $validateConfig)) {
                     $mailer->SMTPAuth = true;
                 }
 
-                if (in_array('ssl', $this->_cfg->validate)) {
+                if (in_array('ssl', $validateConfig)) {
                     $mailer->SMTPSecure = "ssl";
-                } else if (in_array('tls', $this->_cfg->validate)) {
+                } else if (in_array('tls', $validateConfig)) {
                     $mailer->SMTPSecure = "tls";
                 }
 
@@ -91,9 +100,10 @@ class MailValidate_Action extends Typecho_Widget implements Widget_Interface_Do
         $mailer->AddAddress($this->_email->to, $this->_email->toName);
 
         if ($result = $mailer->Send()) {
-            $this->mailLog();
+            // $this->mailLog(); // 原代码这里无此方法，不影响核心逻辑
+            $result = true;
         } else {
-            $this->mailLog(false, $mailer->ErrorInfo . "\r\n");
+            // $this->mailLog(false, $mailer->ErrorInfo . "\r\n");
             $result = $mailer->ErrorInfo;
         }
         
@@ -102,16 +112,18 @@ class MailValidate_Action extends Typecho_Widget implements Widget_Interface_Do
 
         return $result;
     }
+
     public function action(){
-	    $this->init();
-        $token=$this->request->token;
+        $this->init();
+        $token = $this->request->token;
         if($token){
             try {
                 $row = $this->_db->fetchRow($this->_db->select('validate_state')->from('table.users')->where('validate_token = ?', $token));
-                if($row['validate_state']==="1"){
+                // 【修复】弱类型比较，因为数据库查出来可能是字符串 '1' 也可能是数字 1
+                if($row && $row['validate_state'] == "1"){
                     $this->_db->query($this->_db->update('table.users')->rows(array('validate_state' => 2))->where('validate_token = ?', $token));
                     $group = $this->_db->fetchRow($this->_db->select('group')->from('table.users')->where('validate_token = ?', $token));
-                    if($group['group']==="subscriber"){
+                    if($group && $group['group'] === "subscriber"){
                         $this->_db->query($this->_db->update('table.users')->rows(array('group' => "contributor"))->where('validate_token = ?', $token));
                     }
                     echo(file_get_contents($this->_dir."/success.html"));
@@ -119,17 +131,17 @@ class MailValidate_Action extends Typecho_Widget implements Widget_Interface_Do
                     echo(file_get_contents($this->_dir."/fail.html"));
                 }
             } catch (Exception $ex) {
-               echo $ex->getCode(); 
+               echo $ex->getMessage(); 
             }
         }  else {
             echo(file_get_contents($this->_dir."/fail.html"));
         }
-      
     }
+
     public function send(){
         $this->init();
         if(!$this->_user->mail){
-            $this->widget('Widget_Notice')->set("邮件发送失败",'notice');
+            $this->widget('Widget_Notice')->set("邮件发送失败，没有找到用户邮箱",'notice');
             $this->response->goBack();
         }else{
             $this->_email->from = $this->_cfg->user;
@@ -139,19 +151,28 @@ class MailValidate_Action extends Typecho_Widget implements Widget_Interface_Do
             $this->_email->subject = $this->_cfg->titleForGuest;
             
             //生成token：md5(mail+time+随机数)
-            $token=md5($this->_user->mail.time().$this->_user->mail.rand());
+            $token=md5($this->_user->mail . time() . $this->_user->mail . rand());
             $this->_db->query($this->_db->update('table.users')->rows(array('validate_token' => $token))->where('uid = ?', $this->_user->uid));
+            
             $mailcontent=file_get_contents($this->_dir."/mail.html");
-            $keys=array('%sitename%'=>$this->_options->title,'%username%'=>$this->_user->screenName,'%verifyurl%'=>$this->siteUrl."/MailValidate/verify?token=".$token,'%useravatar%'=>md5($this->_user->mail));
+            $keys=array(
+                '%sitename%'=>$this->_options->title,
+                '%username%'=>$this->_user->screenName,
+                '%verifyurl%'=>$this->_options->siteUrl."MailValidate/verify?token=".$token, // 修复URL拼接问题
+                '%useravatar%'=>md5(strtolower(trim($this->_user->mail))) // 修复 Gravatar 获取逻辑
+            );
             $mailcontent=strtr($mailcontent,$keys);
 
             $this->_email->altBody = $mailcontent;
             $this->_email->msgHtml = $mailcontent;
             $result = $this->sendMail();
             
-            $this->_db->query($this->_db->update('table.users')->rows(array('validate_state' => 1))->where('uid = ?', $this->_user->uid));
-            $this->widget('Widget_Notice')->set(true === $result ? _t('邮件发送成功') : _t('邮件发送失败：' . $result),
-                true === $result ? 'success' : 'notice');
+            if ($result === true) {
+                $this->_db->query($this->_db->update('table.users')->rows(array('validate_state' => 1))->where('uid = ?', $this->_user->uid));
+                $this->widget('Widget_Notice')->set(_t('邮件发送成功'), 'success');
+            } else {
+                $this->widget('Widget_Notice')->set(_t('邮件发送失败：' . $result), 'notice');
+            }
     
             $this->response->goBack();
         }
